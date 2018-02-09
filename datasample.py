@@ -38,11 +38,11 @@ class DataSample:
          csvreader = csv.reader(csvfile, delimiter=';')
          for row in csvreader:
             # tuple(date in float, open, high, low, close)
-            self.data.append((timeConverter(row[0], "%Y%m%d %H%M%S"),
+            self.data.append(     (row[0],
                                    float(row[1]),
                                    float(row[2]),
                                    float(row[3]),
-                                   float(row[4])))
+                                   float(row[4])) )
             iCounter = iCounter + 1
             if (iCounter == iLength): break
 
@@ -60,22 +60,18 @@ class DataSample:
    #------------------------- plot ---------------------------
    # @lDataSample:     the data sample to be plot
    # @iSeparatorPos:   the position of vertical line on x-axis 
-   # @return:         a list of a tuple
+   # @return:          a list of a tuple
    #-----------------------------------------------------------
    def plot(self, iSeparatorPos = 0):
-      lPlotSample = []
-      iCounter = 0
-      for tup in self.data:
-         lPlotSample.append( (iCounter,) + tup[1:] )
-         iCounter = iCounter + 1
+      self.time2Index()
 
       fig = plt.figure()
       ax1 = fig.add_subplot(111) # in this function, first number 1 represent the height,
 
       fig.subplots_adjust(bottom=0.2)
-      iBarwidth = lPlotSample[1][0] - lPlotSample[0][0]     # Set the bar width
+      iBarwidth = self.data[1][0] - self.data[0][0]     # Set the bar width
 
-      candlestick_ohlc(ax1, lPlotSample, width=iBarwidth)
+      candlestick_ohlc(ax1, self.data, width=iBarwidth)
       
       #ax1.xaxis_date()
       ax1.autoscale_view()
@@ -89,11 +85,21 @@ class DataSample:
       plt.show()
 
    #--------------- time2Index ---------------
-   # @fRatio:      replace time field by index
+   # description: replace time field by index
    #----------------------------------------------
    def time2Index(self):
       for i in range(0, len(self.data)):
          self.data[i] = (i,) + self.data[i][1:]
+
+   #--------------- time2float ---------------
+   # description: replace time field by float time
+   #              (mainly for plot)
+   #----------------------------------------------
+   def time2float(self):
+      for i in range(0, len(self.data)):
+         tmp_floattime = timeConverter(self.data[i][0], "%Y%m%d %H%M%S")
+         self.data[i] = (tmp_floattime ,) + self.data[i][1:]
+
 
    #--------------- reduceLength ---------------
    # @iTimes:    new length = old length/iTimes 
@@ -146,25 +152,25 @@ class DataSample:
             bTouchBottom = True
             #print ("lower bound reached at" + repr(iPos) )
          if (bTouchUpper and bTouchBottom):
-            return None
+            return [self.data[iPos][0], 0]   # 0 represents a conflict
          elif (bTouchUpper):
             return [self.data[iPos][0], 1]
          elif (bTouchBottom):
             return [self.data[iPos][0], -1]
          iPos = iPos - 1
-      return None
+      return None   # None represents not found
 
 
 def test():
    testData = DataSample()
    testData.readFromFile('testcase.csv')
    assert testData.len() == 10
-   #testData.plot()
+   testData.plot()
    testData.time2Index()
    assert testData.searchBack(3, 0.05) == [2, 1]
    assert testData.searchBack(4, 0.05) == [2, 1]
    assert testData.searchBack(3, 0.05) == [2, 1]
-   assert testData.searchBack(9, 0.04) == None
+   assert testData.searchBack(9, 0.04) == [8, 0]
    assert testData.searchBack(8, 0.05) == [7, -1]
    assert testData.searchBack(7, 0.13) == None
 
@@ -186,3 +192,5 @@ def test():
 
    testData.reduceLength(2)
    assert testData.data[0][1:] == (1000, 1200, 935, 975)
+
+   print ('Test ended.')

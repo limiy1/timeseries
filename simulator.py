@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import datasample
+import matplotlib.pyplot as plt
 
 class Simulator:
    def __init__(self, lRatio):
@@ -28,6 +29,22 @@ class Simulator:
       for iPos in range(1, dataSample.len()):
          self.simulateOnce(dataSample, iPos)
 
+   def plotStat(self):
+      histo = [0] * len(self.lRatioList)
+      for key, vList in self.resultMap.iteritems():
+         for i in range(0, len(vList)):
+            if (vList[i] != None):
+               histo[i] += 1
+
+      objects = tuple(self.lRatioList)
+      x_pos = range(0, len(histo))
+      plt.bar(x_pos, histo, align='center', alpha=0.5)
+      plt.ylabel('Frequency')
+      plt.xticks(x_pos, objects)
+      plt.title('Statistics')
+ 
+      plt.show()
+
 def test():
    testData = datasample.DataSample()
    testData.readFromFile('testcase.csv')
@@ -40,5 +57,6 @@ def test():
    assert simu.resultMap['20180101 180800'] == [-1, -1, None, None]
    assert simu.resultMap['20180101 180200'] == [1, 1, None, None]
    assert simu.resultMap['20180101 180100'] == [1, 1, 1, None]
+   simu.plotStat()
    print ('Simulator test ended.')
 

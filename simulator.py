@@ -1,32 +1,6 @@
 #!/usr/bin/env python
 import datasample
 
-
-debugMode = 0
-
-def debugPrint(outputString):
-   if (debugMode):
-      print(outputString)
-
-##################### Type matrix #######################
-#
-#   l\h   below_lower     nothing      above_higher
-#
-#   B_L    FALL_FALL    FALL_STABLE      FALL_RISE
-#   N/A      XXXX         STABLE           XXXX
-#   A_H    RISE_FALL    RISE_STALBE      RISE_RISE
-#
-#########################################################
-
-STABLE      = 0
-FALL_FALL   = 1
-FALL_STABLE = 2
-FALL_RISE   = 3
-RISE_FALL   = 4
-RISE_STALBE = 5
-RISE_RISE   = 6
-CONFLICT    = 7
-
 class Simulator:
    def __init__(self, lRatio):
       self.lRatioList = lRatio
@@ -60,5 +34,11 @@ def test():
    listRatio = [0.05, 0.10, 0.15, 0.20]
    simu = Simulator(listRatio)
    simu.simulate(testData)
-   print simu.resultMap
+   assert simu.resultMap['20180101 180900'] == [1, None, None, None]
+   assert simu.resultMap['20180101 180700'] == [-1, -1, None, None]
+   assert simu.resultMap['20180101 180300'] == [1, 1, None, None]
+   assert simu.resultMap['20180101 180800'] == [-1, -1, None, None]
+   assert simu.resultMap['20180101 180200'] == [1, 1, None, None]
+   assert simu.resultMap['20180101 180100'] == [1, 1, 1, None]
+   print ('Simulator test ended.')
 

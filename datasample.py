@@ -5,6 +5,12 @@ import matplotlib.dates as dt
 import matplotlib.pyplot as plt
 from matplotlib.finance import candlestick_ohlc
 
+debugMode = 0
+
+def debugPrint(outputString):
+   if (debugMode):
+      print(outputString)
+
 #--------------- timeConverter ---------------
 # @sTimeString: string containing a time to be converted to float
 # @sFormat:     string represent the format
@@ -147,10 +153,10 @@ class DataSample:
          # iStartPos reach upper bound
          if (self.data[iStartPos][2] > self.data[iPos][2]*(1+fRatio)):
             bTouchUpper  = True
-            #print ("upper bound reached at" + repr(iPos) )
+            debugPrint ("upper bound reached at" + repr(iPos) )
          if (self.data[iStartPos][3] < self.data[iPos][3]*(1-fRatio)):
             bTouchBottom = True
-            #print ("lower bound reached at" + repr(iPos) )
+            debugPrint ("lower bound reached at" + repr(iPos) )
          if (bTouchUpper and bTouchBottom):
             return [self.data[iPos][0], 0]   # 0 represents a conflict
          elif (bTouchUpper):
@@ -193,4 +199,4 @@ def test():
    testData.reduceLength(2)
    assert testData.data[0][1:] == (1000, 1200, 935, 975)
 
-   print ('Test ended.')
+   print ('DataSample test ended.')

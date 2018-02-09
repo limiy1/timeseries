@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import datasample
-import simulation2
+import simulator
 
 datasample.test()
-simulation2.test()
+simulator.test()

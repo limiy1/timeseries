@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from sys import stdout
+import time
 import datasample
+import numpy as np
 import matplotlib.pyplot as plt
 
 class Simulator:
@@ -27,32 +29,58 @@ class Simulator:
                j = j-1
 
    def simulate(self, dataSample):
+      tic = time.time()
+      xPerSecond = 0
+      lastPos = 0
       dataNum = dataSample.len()
       for iPos in range(1, dataNum):
-         stdout.write("\r[%2.1f%%] Simulating with action postion %d/%d" % (iPos/float(dataNum)*100, iPos , dataNum) )
+         stdout.write("\r[%2.1f%%] Simulating with action postion %d/%d (%d/s)" % (iPos/float(dataNum)*100, iPos, dataNum, xPerSecond) )
          stdout.flush()
          self.simulateOnce(dataSample, iPos)
+         if (time.time() - tic > 1):
+            xPerSecond = iPos - lastPos
+            lastPos = iPos
+            tic = time.time()
       stdout.write("\n")
 
    def plotStat(self):
-      histoPos = [0] * len(self.lRatioList)
-      histoNeg = [0] * len(self.lRatioList)
+      num = len(self.lRatioList)
+      histoPos = np.zeros(num)
+      histoNeg = np.zeros(num)
+      histoDlm = np.zeros(num)
       for key, vList in self.resultMap.iteritems():
          for i in range(0, len(vList)):
             if (vList[i] != None):
                if (vList[i] > 0):
-                  histoPos[i] += 1
+                  histoPos[i] += 1.0
                elif (vList[i] < 0):
-                  histoNeg[i] -= 1
+                  histoNeg[i] += 1.0
+               else:
+                  histoDlm[i] += 1.0
 
+      idx = np.arange(num)
+      effectiveRatio = np.divide(histoPos + histoNeg, histoPos + histoNeg + histoDlm)*100
+
+      # Set attributes
+      fig = plt.figure()
+      curveAx = fig.add_subplot(111)
+      barAx = curveAx.twinx()
+
+      curveAx.set_ylabel('Effec. Ratio (%)')
+      barAx.set_ylabel('Occurence')
+
+      # Plot
+      curve, = curveAx.plot(idx, effectiveRatio, 'go-')
+      positiveBar = barAx.bar(idx-0.15, histoPos, width = 0.3, color = 'b', align='center', alpha=0.5)
+      negativeBar = barAx.bar(idx+0.15, histoNeg, width = 0.3, color = 'r', align='center', alpha=0.5)
+      curveAx.legend([curve, positiveBar, negativeBar], ['Effec. Ratio', 'Positive', 'Negative'])
+
+      curveAx.set_ylim([0, 102])
+
+      # Set x-axis ticks
       objects = tuple(self.lRatioList)
-      x_pos = range(0, len(histoPos))
-      plt.bar(x_pos, histoPos, color = 'b', align='center', alpha=0.5)
-      plt.bar(x_pos, histoNeg, color = 'r', align='center', alpha=0.5)
-      plt.ylabel('Frequency')
-      plt.xticks(x_pos, objects)
-      plt.title('Statistics')
- 
+      plt.xticks(idx, objects)
+
       plt.show()
 
 def test():

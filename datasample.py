@@ -145,24 +145,25 @@ class DataSample:
    # @iStartPos:   start searching position (backward)
    # @return:      [position found, +/-1 indicating upper/bottom bound reached
    #----------------------------------------------
-   def searchBack(self, iStartPos, fRatio):
-      iPos = iStartPos - 1
+   def searchBack(self, iRefPos, fRatio, iStartPos = None):
+      if (iStartPos is None):
+         iStartPos = iRefPos - 1
+      iPos = iStartPos
       bTouchUpper  = None
       bTouchBottom = None
       while iPos >= 0:
-         # iStartPos reach upper bound
-         if (self.data[iStartPos][2] > self.data[iPos][2]*(1+fRatio)):
+         if (self.data[iRefPos][2] > self.data[iPos][2]*(1+fRatio)):
             bTouchUpper  = True
             debugPrint ("upper bound reached at" + repr(iPos) )
-         if (self.data[iStartPos][3] < self.data[iPos][3]*(1-fRatio)):
+         if (self.data[iRefPos][3] < self.data[iPos][3]*(1-fRatio)):
             bTouchBottom = True
             debugPrint ("lower bound reached at" + repr(iPos) )
          if (bTouchUpper and bTouchBottom):
-            return [self.data[iPos][0], 0]   # 0 represents a conflict
+            return [iPos, self.data[iPos][0], 0]   # 0 represents a conflict
          elif (bTouchUpper):
-            return [self.data[iPos][0], 1]
+            return [iPos, self.data[iPos][0], 1]
          elif (bTouchBottom):
-            return [self.data[iPos][0], -1]
+            return [iPos, self.data[iPos][0], -1]
          iPos = iPos - 1
       return None   # None represents not found
 
@@ -173,11 +174,11 @@ def test():
    assert testData.len() == 10
    testData.plot()
    testData.time2Index()
-   assert testData.searchBack(3, 0.05) == [2, 1]
-   assert testData.searchBack(4, 0.05) == [2, 1]
-   assert testData.searchBack(3, 0.05) == [2, 1]
-   assert testData.searchBack(9, 0.04) == [8, 0]
-   assert testData.searchBack(8, 0.05) == [7, -1]
+   assert testData.searchBack(3, 0.05) == [2, 2, 1]
+   assert testData.searchBack(4, 0.05) == [2, 2, 1]
+   assert testData.searchBack(3, 0.05) == [2, 2, 1]
+   assert testData.searchBack(9, 0.04) == [8, 8, 0]
+   assert testData.searchBack(8, 0.05) == [7, 7, -1]
    assert testData.searchBack(7, 0.13) == None
 
    testData.reduceLength(2)

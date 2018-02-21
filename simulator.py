@@ -16,10 +16,12 @@ class Simulator:
    # @iActionPos: the pressumed action position
    def simulateOnce(self, dataSample, iActionPos):
       #print("Start simulation with action postion = " + repr(iActionPos))
+      iSearchPos = iActionPos - 1
       for i in range(0, len(self.lRatioList)):
-         resTmp = dataSample.searchBack(iActionPos, self.lRatioList[i])
+         resTmp = dataSample.searchBack(iActionPos, self.lRatioList[i], iSearchPos)
          if (resTmp != None):
-            [sKey, bRes] = resTmp
+            [idx, sKey, bRes] = resTmp
+            iSearchPos = idx
             if (sKey not in self.resultMap):
                lRes = [None] * len(self.lRatioList)
                self.resultMap[sKey] = lRes
@@ -27,14 +29,16 @@ class Simulator:
             while (j>=0 and self.resultMap[sKey][j] == None):
                self.resultMap[sKey][j] = bRes
                j = j-1
+         else:
+            break
 
    def simulate(self, dataSample):
       tic = time.time()
-      xPerSecond = 0
+      xPerSecond = 100
       lastPos = 0
       dataNum = dataSample.len()
       for iPos in range(1, dataNum):
-         stdout.write("\r[%2.1f%%] Simulating with action postion %d/%d (%d/s)" % (iPos/float(dataNum)*100, iPos, dataNum, xPerSecond) )
+         stdout.write("\r[%2.1f%%] Simulating with action postion %d/%d (%d/s, %1.1f min remained)" % (iPos/float(dataNum)*100, iPos, dataNum, xPerSecond, (dataNum-iPos)/60.0/xPerSecond) )
          stdout.flush()
          self.simulateOnce(dataSample, iPos)
          if (time.time() - tic > 1):

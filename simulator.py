@@ -12,6 +12,9 @@ class Simulator:
       # format expected of resultMap:
       # "data string": [-1, -1, 1, 0, 1, 1, ...]
 
+   def __eq__(self, other):
+      return ((self.lRatioList == other.lRatioList) and (self.resultMap == other.resultMap))
+
    # @dataSample: all the data serie
    # @iActionPos: the pressumed action position
    def simulateOnce(self, dataSample, iActionPos):
@@ -46,6 +49,20 @@ class Simulator:
             lastPos = iPos
             tic = time.time()
       stdout.write("\n")
+
+   # Save and load result to/from file
+   def saveToFile(self, filename):
+      outFile = open(filename, 'w')
+      outFile.write(str(self.lRatioList) + '\n')
+      for x, val in self.resultMap.iteritems():
+          outFile.write( x + ':' +  str(val) + '\n')
+
+   def loadFromFile(self, filename):
+      inFile = open(filename, 'r')
+      self.lRatioList = eval(inFile.readline())
+      for line in inFile:
+         [key, val] = line.split(':')
+         self.resultMap[key] = eval(val)
 
    def plotStat(self):
       num = len(self.lRatioList)
@@ -99,6 +116,10 @@ def test():
    assert simu.resultMap['20180101 180800'] == [-1, -1, None, None]
    assert simu.resultMap['20180101 180200'] == [1, 1, None, None]
    assert simu.resultMap['20180101 180100'] == [1, 1, 1, None]
+   simu.saveToFile('resultmap.txt')
+   simu2 = Simulator([])
+   simu2.loadFromFile('resultmap.txt')
+   assert simu == simu2
    simu.plotStat()
    print ('Simulator test ended.')
 

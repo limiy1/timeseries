@@ -9,8 +9,10 @@ class Simulator:
    def __init__(self, lRatio):
       self.lRatioList = lRatio
       self.resultMap  = {}
-      # format expected of resultMap:
-      # "data string": [-1, -1, 1, 0, 1, 1, ...]
+      # Expected format of resultMap:
+      # "date string": [-1, -1, 1, 0, 1, 1, ...]
+      # ex: 20171212 021300:[-1, None, None, None, None, None]
+      # +1/-1 mean upper/under bound will be reached in the future of "date string"
 
    def __eq__(self, other):
       return ((self.lRatioList == other.lRatioList) and (self.resultMap == other.resultMap))
@@ -50,20 +52,79 @@ class Simulator:
             tic = time.time()
       stdout.write("\n")
 
-   # Save and load result to/from file
+   # Save (sorted) result to file
    def saveToFile(self, filename):
       outFile = open(filename, 'w')
       outFile.write(str(self.lRatioList) + '\n')
-      for x, val in self.resultMap.iteritems():
-          outFile.write( x + ':' +  str(val) + '\n')
 
+      sortedList = sorted(self.resultMap.items())  # return a list of tuple (key, val), sorted by key (date)
+      for pos in range(0, len(sortedList)):
+         x = sortedList[pos][0]
+         val = sortedList[pos][1]
+         outFile.write( x + ':' +  str(val) + '\n')
+
+   # Load result from file
    def loadFromFile(self, filename):
       inFile = open(filename, 'r')
       self.lRatioList = eval(inFile.readline())
       for line in inFile:
          [key, val] = line.split(':')
          self.resultMap[key] = eval(val)
+  
 
+   # Find the distance between two upper-touch or two bottom touch and return the frequency (in one day)
+   def getFrequencyFromNearestCounterPart(self, sortedList, currentPos, ratioIdx):
+      maxnum = len(sortedList)
+      currentTime = sortedList[currentPos][0]
+      currentVal = sortedList[currentPos][1][ratioIdx]   # currentVal == +1 or -1
+
+      # Under the same ratio, find the distance between the first -1 on the left and current position (+1)
+      i = 1
+      dist_left = 0
+      while (currentPos - i >= 0):
+         if ((sortedList[currentPos-i][1][ratioIdx] != None) and (sortedList[currentPos-i][1][ratioIdx] + currentVal == 0)):
+            dist_left = datasample.getDiffInMinutes(sortedList[currentPos-i][0], currentTime)
+         i = i + 1
+
+      # Under the same ratio, find the distance between the first -1 on the left and current position (+1)
+      j = 1
+      dist_right = 0
+      while (currentPos + j < maxnum):
+         if ((sortedList[currentPos+j][1][ratioIdx] != None) and (sortedList[currentPos+j][1][ratioIdx] + currentVal == 0)):
+            dist_right = datasample.getDiffInMinutes(currentTime, sortedList[currentPos+j][0])
+         j = j + 1
+
+      # If both are found, get the distance between the both -1 and mark both timestamps idx
+      if ((dist_left != 0) and (dist_right != 0)):
+         return ([24*60/(dist_left + dist_right), i, j])
+      # Not found the frequency  
+      else:
+         return ([None, i, j])
+
+
+
+   def plotPeriod(self):
+      frequencies = [[] for i in range(len(self.lRatioList))]
+      sortedList = sorted(self.resultMap.items())  # return a list of tuple (key, val), sorted by key (date)
+      for pos in range(0, len(sortedList)):
+         stdout.write("\rProcessing %d among %d" % (pos, len(sortedList)) )
+         stdout.flush()
+         for ratioIdx in range(0, len(self.lRatioList)):
+            if (sortedList[pos][1][ratioIdx] != None):
+               freq = self.getFrequencyFromNearestCounterPart(sortedList, pos, ratioIdx)
+               if (freq != 0):
+                  frequencies[ratioIdx].append(freq)
+            else:
+               break;
+
+      stdout.write("\n")
+      print(sortedList)
+      print(frequencies)
+
+   # Plot the statistic of resultMap per ratio:
+   # - The number of +1
+   # - The number of -1
+   # - The ratio of (+1/-1)/(total reply)
    def plotStat(self):
       num = len(self.lRatioList)
       histoPos = np.zeros(num)
@@ -80,6 +141,8 @@ class Simulator:
                   histoDlm[i] += 1.0
 
       idx = np.arange(num)
+
+      # Plot the (actionable ticks)/(all ticks)
       effectiveRatio = np.divide(histoPos + histoNeg, histoPos + histoNeg + histoDlm)*100
 
       # Set attributes

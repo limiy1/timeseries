@@ -7,6 +7,8 @@ from matplotlib.finance import candlestick_ohlc
 
 debugMode = 0
 
+TIME_FORMAT="%Y%m%d %H%M%S"
+
 def debugPrint(outputString):
    if (debugMode):
       print(outputString)
@@ -17,8 +19,14 @@ def debugPrint(outputString):
 # @return:      a float represent the time
 #---------------------------------------------
 def timeConverter(sTimeString, sFormat):
-   datetime_temp = datetime.datetime.strptime(sTimeString, sFormat)
+   datetime_temp = datetime.datetime.strptime(sTimeString, sFormat = TIME_FORMAT)
    return dt.date2num(datetime_temp)
+
+def getDiffInMinutes(timeString1, timeString2, sFormat = TIME_FORMAT):
+   datetime1 = datetime.datetime.strptime(timeString1, sFormat)
+   datetime2 = datetime.datetime.strptime(timeString2, sFormat)
+   deltaTime = datetime2 - datetime1
+   return int(deltaTime.total_seconds() / 60)
 
 class DataSample:
    def __init__(self, other = None, iStartPos = 0, iEndPos = -1):
@@ -103,7 +111,7 @@ class DataSample:
    #----------------------------------------------
    def time2float(self):
       for i in range(0, len(self.data)):
-         tmp_floattime = timeConverter(self.data[i][0], "%Y%m%d %H%M%S")
+         tmp_floattime = timeConverter(self.data[i][0], TIME_FORMAT)
          self.data[i] = (tmp_floattime ,) + self.data[i][1:]
 
 
@@ -142,8 +150,10 @@ class DataSample:
 
    #--------------- searchBack ---------------
    # @fRatio:      the threshold to search
+   # @iRefPos:     the position of reference (action) data
    # @iStartPos:   start searching position (backward)
-   # @return:      [position found, +/-1 indicating upper/bottom bound reached
+   #                  NB: There is always (iStartPos < iRefPos), since iStartPos is only for acceleration purpose
+   # @return:      [position found, date string, +/-1 indicating upper/bottom bound reached
    #----------------------------------------------
    def searchBack(self, iRefPos, fRatio, iStartPos = None):
       if (iStartPos is None):
@@ -152,9 +162,11 @@ class DataSample:
       bTouchUpper  = None
       bTouchBottom = None
       while iPos >= 0:
+         # Positive benifit
          if (self.data[iRefPos][2] > self.data[iPos][2]*(1+fRatio)):
             bTouchUpper  = True
             debugPrint ("upper bound reached at" + repr(iPos) )
+         # Negative benifits
          if (self.data[iRefPos][3] < self.data[iPos][3]*(1-fRatio)):
             bTouchBottom = True
             debugPrint ("lower bound reached at" + repr(iPos) )

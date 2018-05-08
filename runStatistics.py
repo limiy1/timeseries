@@ -10,4 +10,5 @@ myData.readFromFile(inputFile)
 listRatio = [0.005, 0.010, 0.015, 0.020, 0.025, 0.030]
 simu = simulator.Simulator(listRatio)
 simu.simulate(myData)
+simu.saveToFile(inputFile+'.res')
 simu.plotStat()

@@ -84,6 +84,8 @@ class Simulator:
       while (currentPos - i >= 0):
          if ((sortedList[currentPos-i][1][ratioIdx] != None) and (sortedList[currentPos-i][1][ratioIdx] + currentVal == 0)):
             dist_left = datasample.getDiffInMinutes(sortedList[currentPos-i][0], currentTime)
+            #print('dist_left = ' + str(dist_left))
+            break
          i = i + 1
 
       # Under the same ratio, find the distance between the first -1 on the left and current position (+1)
@@ -92,34 +94,38 @@ class Simulator:
       while (currentPos + j < maxnum):
          if ((sortedList[currentPos+j][1][ratioIdx] != None) and (sortedList[currentPos+j][1][ratioIdx] + currentVal == 0)):
             dist_right = datasample.getDiffInMinutes(currentTime, sortedList[currentPos+j][0])
+            #print('dist_right = ' + str(dist_right))
+            break
          j = j + 1
 
       # If both are found, get the distance between the both -1 and mark both timestamps idx
       if ((dist_left != 0) and (dist_right != 0)):
-         return ([24*60/(dist_left + dist_right), i, j])
+         return ([24*60.0/(dist_left + dist_right), currentPos - i, currentPos + j])
       # Not found the frequency  
       else:
-         return ([None, i, j])
-
+         return ([None, currentPos - i, currentPos + j])
 
 
    def plotPeriod(self):
       frequencies = [[] for i in range(len(self.lRatioList))]
       sortedList = sorted(self.resultMap.items())  # return a list of tuple (key, val), sorted by key (date)
-      for pos in range(0, len(sortedList)):
-         stdout.write("\rProcessing %d among %d" % (pos, len(sortedList)) )
-         stdout.flush()
-         for ratioIdx in range(0, len(self.lRatioList)):
-            if (sortedList[pos][1][ratioIdx] != None):
-               freq = self.getFrequencyFromNearestCounterPart(sortedList, pos, ratioIdx)
-               if (freq != 0):
-                  frequencies[ratioIdx].append(freq)
-            else:
-               break;
 
-      stdout.write("\n")
-      print(sortedList)
-      print(frequencies)
+      for ratioIdx in range(0, len(self.lRatioList)):
+         pos = 0
+         while (pos < len(sortedList)):
+            stdout.write("\rRatio %5.3f: Processing %d among %d" % (self.lRatioList[ratioIdx], pos, len(sortedList)) )
+            stdout.flush()
+            if (sortedList[pos][1][ratioIdx] != None):
+               [freq, leftPos, rightPos] = self.getFrequencyFromNearestCounterPart(sortedList, pos, ratioIdx)
+               if (freq != None):
+                  frequencies[ratioIdx].append(freq)
+               pos = rightPos
+            else:
+               pos = pos+1
+         stdout.write("\n")
+
+      #print(sortedList)
+      return frequencies
 
    # Plot the statistic of resultMap per ratio:
    # - The number of +1
@@ -184,5 +190,8 @@ def test():
    simu2.loadFromFile('resultmap.txt')
    assert simu == simu2
    simu.plotStat()
+
+   freqs = simu.plotPeriod()
+   assert freqs == [[240], [], [], []]
    print ('Simulator test ended.')
 

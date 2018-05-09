@@ -105,8 +105,8 @@ class Simulator:
       else:
          return ([None, currentPos - i, currentPos + j])
 
-
-   def plotPeriod(self):
+   # Plot how frequently the action window changes
+   def plotPeriod(self, outputbase):
       frequencies = [[] for i in range(len(self.lRatioList))]
       sortedList = sorted(self.resultMap.items())  # return a list of tuple (key, val), sorted by key (date)
 
@@ -123,6 +123,18 @@ class Simulator:
             else:
                pos = pos+1
          stdout.write("\n")
+   
+         if (frequencies[ratioIdx] != []):
+            plt.hist(frequencies[ratioIdx], color='green', alpha=0.75, label=str(self.lRatioList[ratioIdx]))
+            plt.legend(loc='upper right')
+            plt.title( 'Window frequency (/day) (source:' + outputbase + ')' )
+            plt.xlabel('Times/day')
+            plt.ylabel('Occurences (Total=' + str(len(frequencies[ratioIdx])) + ')')
+            #plt.show()
+            plt.savefig(outputbase + '_freq_r' + str(self.lRatioList[ratioIdx]) + '.png')
+            plt.close()
+         else:
+            break
 
       #print(sortedList)
       return frequencies
@@ -131,7 +143,7 @@ class Simulator:
    # - The number of +1
    # - The number of -1
    # - The ratio of (+1/-1)/(total reply)
-   def plotStat(self):
+   def plotStat(self, outputbase):
       num = len(self.lRatioList)
       histoPos = np.zeros(num)
       histoNeg = np.zeros(num)
@@ -158,6 +170,7 @@ class Simulator:
 
       curveAx.set_ylabel('Effec. Ratio (%)')
       barAx.set_ylabel('Occurence')
+      barAx.set_xlabel('Ratio')
 
       # Plot
       curve, = curveAx.plot(idx, effectiveRatio, 'go-')
@@ -171,7 +184,12 @@ class Simulator:
       objects = tuple(self.lRatioList)
       plt.xticks(idx, objects)
 
-      plt.show()
+      plt.title('Statistics (source:' + outputbase + ')' )
+      
+
+      plt.savefig(outputbase + '_stat.png')
+      plt.close()
+      #plt.show()
 
 def test():
    testData = datasample.DataSample()
@@ -189,9 +207,9 @@ def test():
    simu2 = Simulator([])
    simu2.loadFromFile('resultmap.txt')
    assert simu == simu2
-   simu.plotStat()
+   simu.plotStat('test')
 
-   freqs = simu.plotPeriod()
+   freqs = simu.plotPeriod('test')
    assert freqs == [[240], [], [], []]
    print ('Simulator test ended.')
 

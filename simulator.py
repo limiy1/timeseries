@@ -4,10 +4,12 @@ import time
 import datasample
 import numpy as np
 import matplotlib.pyplot as plt
+from sets import Set
 
 class Simulator:
    def __init__(self, lRatio):
       self.lRatioList = lRatio
+      self.tmpMarkers = Set([])
       self.resultMap  = {}
       # Expected format of resultMap:
       # "date string": [-1, -1, 1, 0, 1, 1, ...]
@@ -26,6 +28,7 @@ class Simulator:
          resTmp = dataSample.searchBack(iActionPos, self.lRatioList[i], iSearchPos)
          if (resTmp != None):
             [idx, sKey, iRes] = resTmp
+            self.tmpMarkers.add(idx)
             iSearchPos = idx
             if (sKey not in self.resultMap):
                lRes = [None] * len(self.lRatioList)
@@ -42,26 +45,41 @@ class Simulator:
    def simulateOnceForward(self, dataSample, iActionPos):
       datasample.debugPrint("Start simulation with action postion = " + repr(iActionPos))
       iSearchPos = iActionPos + 1
-      lRes = [None] * len(self.lRatioList)
+
+      sKey = dataSample.data[iActionPos][0]
+      lRes = self.resultMap[sKey]
       for i in range(0, len(self.lRatioList)):
-         resTmp = dataSample.searchForward(iActionPos, self.lRatioList[i], iSearchPos)
-         if (resTmp != None):
-            [idx, tmpkey, iRes] = resTmp
-            lRes[i] = iRes
-            iSearchPos = idx
-         else:
-            break
-      if (lRes[0] != None):
-         sKey = dataSample.data[iActionPos][0]
-         self.resultMap[sKey] = lRes
+         if (lRes[i] != None):
+            resTmp = dataSample.searchForward(iActionPos, self.lRatioList[i], iSearchPos)
+            if (resTmp != None):
+               [idx, tmpkey, iRes] = resTmp
+               lRes[i] = iRes
+               iSearchPos = idx
+            else:
+               print('Error: forward and backward not compatible!')
+
 
    def simulate(self, dataSample):
       tic = time.time()
       xPerSecond = 100
       lastPos = 0
       dataNum = dataSample.len()
+
+      # Backward to find key positions
       for iPos in range(0, dataNum):
          stdout.write("\r[%2.1f%%] Simulating with action postion %d/%d (%d/s, %1.1f min remained)" % (iPos/float(dataNum)*100, iPos, dataNum, xPerSecond, (dataNum-iPos)/60.0/xPerSecond) )
+         stdout.flush()
+         self.simulateOnceBackward(dataSample, iPos)
+         if (time.time() - tic > 1):
+            xPerSecond = iPos - lastPos
+            lastPos = iPos
+            tic = time.time()
+      stdout.write("\n")
+
+      self.saveToFile('backwardres.txt')
+      # Forward check
+      for iPos in self.tmpMarkers:
+         stdout.write("\r[%2.1f%%] Checking with action postion %d/%d (%d/s, %1.1f min remained)" % (iPos/float(dataNum)*100, iPos, dataNum, xPerSecond, (dataNum-iPos)/60.0/xPerSecond) )
          stdout.flush()
          self.simulateOnceForward(dataSample, iPos)
          if (time.time() - tic > 1):

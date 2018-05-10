@@ -153,7 +153,11 @@ class DataSample:
    # @iRefPos:     the position of reference (action) data
    # @iStartPos:   start searching position (backward)
    #                  NB: There is always (iStartPos < iRefPos), since iStartPos is only for acceleration purpose
-   # @return:      [position found, date string, +/-1 indicating upper/bottom bound reached
+   # @return:      [position found, date string of back search result, 
+   #                a number indicating the distance between bound reached pos and reference pos
+   #                >0: upper bound reached
+   #                <0: lower bound reached
+   #                =0: conflicts ]
    #----------------------------------------------
    def searchBack(self, iRefPos, fRatio, iStartPos = None):
       if (iStartPos is None):
@@ -165,33 +169,82 @@ class DataSample:
          # Positive benifit
          if (self.data[iRefPos][2] > self.data[iPos][2]*(1+fRatio)):
             bTouchUpper  = True
-            debugPrint ("upper bound reached at" + repr(iPos) )
+            debugPrint ("upper bound reached at " + repr(iPos) )
          # Negative benifits
          if (self.data[iRefPos][3] < self.data[iPos][3]*(1-fRatio)):
             bTouchBottom = True
-            debugPrint ("lower bound reached at" + repr(iPos) )
+            debugPrint ("lower bound reached at " + repr(iPos) )
+         if (bTouchUpper or bTouchBottom):
+            diffInMinutes = getDiffInMinutes(self.data[iPos][0],self.data[iRefPos][0])
+
          if (bTouchUpper and bTouchBottom):
             return [iPos, self.data[iPos][0], 0]   # 0 represents a conflict
          elif (bTouchUpper):
-            return [iPos, self.data[iPos][0], 1]
+            return [iPos, self.data[iPos][0], diffInMinutes]
          elif (bTouchBottom):
-            return [iPos, self.data[iPos][0], -1]
+            return [iPos, self.data[iPos][0], -diffInMinutes]
          iPos = iPos - 1
       return None   # None represents not found
 
+
+   #--------------- searchForward ---------------
+   # @fRatio:      the threshold to search
+   # @iRefPos:     the position of reference (action) data
+   # @iStartPos:   start searching position (forward)
+   #                  NB: There is always (iRefPos < iStartPos), since iStartPos is only for acceleration purpose
+   # @return:      [position found,
+   #                a number indicating the distance between bound reached pos and reference pos]
+   #                >0: upper bound reached
+   #                <0: lower bound reached
+   #                =0: conflicts ]
+   #----------------------------------------------
+   def searchForward(self, iRefPos, fRatio, iStartPos = None):
+      if (iStartPos is None):
+         iStartPos = iRefPos + 1
+      iPos = iStartPos
+      bTouchUpper  = None
+      bTouchBottom = None
+      maxnum = len(self.data)
+      while iPos < maxnum:
+         # Positive benifit
+         if (self.data[iPos][2] > self.data[iRefPos][2]*(1+fRatio)):
+            bTouchUpper  = True
+            debugPrint ("upper bound reached at" + repr(iPos) )
+         # Negative benifits
+         if (self.data[iPos][3] < self.data[iRefPos][3]*(1-fRatio)):
+            bTouchBottom = True
+            debugPrint ("lower bound reached at" + repr(iPos) )
+         if (bTouchUpper or bTouchBottom):
+            diffInMinutes = getDiffInMinutes(self.data[iRefPos][0],self.data[iPos][0])
+
+         if (bTouchUpper and bTouchBottom):
+            return [iPos, self.data[iPos][0], 0]   # 0 represents a conflict
+         elif (bTouchUpper):
+            return [iPos, self.data[iPos][0], diffInMinutes]
+         elif (bTouchBottom):
+            return [iPos, self.data[iPos][0], -diffInMinutes]
+         iPos = iPos + 1
+      return None   # None represents not found
 
 def test():
    testData = DataSample()
    testData.readFromFile('testcase.csv')
    assert testData.len() == 10
-   testData.plot()
-   testData.time2Index()
-   assert testData.searchBack(3, 0.05) == [2, 2, 1]
-   assert testData.searchBack(4, 0.05) == [2, 2, 1]
-   assert testData.searchBack(3, 0.05) == [2, 2, 1]
-   assert testData.searchBack(9, 0.04) == [8, 8, 0]
-   assert testData.searchBack(8, 0.05) == [7, 7, -1]
+   #testData.plot()
+   assert testData.searchBack(3, 0.05) == [2, '20180101 180300', 1]
+   assert testData.searchBack(4, 0.05) == [2, '20180101 180300', 2]
+   assert testData.searchBack(3, 0.05) == [2, '20180101 180300', 1]
+   assert testData.searchBack(9, 0.04) == [8, '20180101 180900', 0]
+   assert testData.searchBack(8, 0.05) == [7, '20180101 180800', -1]
    assert testData.searchBack(7, 0.13) == None
+
+   assert testData.searchForward(0, 0.05) == [2, '20180101 180300', 2]
+   assert testData.searchForward(1, 0.05) == [3, '20180101 180400', 2]
+   assert testData.searchForward(2, 0.05) == [3, '20180101 180400', 1]
+   assert testData.searchForward(3, 0.05) == [8, '20180101 180900', -5]
+   assert testData.searchForward(4, 0.05) == [8, '20180101 180900', -4]
+   assert testData.searchForward(8, 0.04) == [9, '20180101 181000', 0]
+   assert testData.searchForward(9, 0.05) == None
 
    testData.reduceLength(2)
    assert testData.data[0][1:] == (1000, 1050, 1000, 1050)

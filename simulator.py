@@ -19,33 +19,51 @@ class Simulator:
 
    # @dataSample: all the data serie
    # @iActionPos: the pressumed action position
-   def simulateOnce(self, dataSample, iActionPos):
-      #print("Start simulation with action postion = " + repr(iActionPos))
+   def simulateOnceBackward(self, dataSample, iActionPos):
+      datasample.debugPrint("Start simulation with action postion = " + repr(iActionPos))
       iSearchPos = iActionPos - 1
       for i in range(0, len(self.lRatioList)):
          resTmp = dataSample.searchBack(iActionPos, self.lRatioList[i], iSearchPos)
          if (resTmp != None):
-            [idx, sKey, bRes] = resTmp
+            [idx, sKey, iRes] = resTmp
             iSearchPos = idx
             if (sKey not in self.resultMap):
                lRes = [None] * len(self.lRatioList)
                self.resultMap[sKey] = lRes
             j = i
             while (j>=0 and self.resultMap[sKey][j] == None):
-               self.resultMap[sKey][j] = bRes
+               self.resultMap[sKey][j] = iRes
                j = j-1
          else:
             break
+
+   # @dataSample: all the data serie
+   # @iActionPos: the pressumed action position
+   def simulateOnceForward(self, dataSample, iActionPos):
+      datasample.debugPrint("Start simulation with action postion = " + repr(iActionPos))
+      iSearchPos = iActionPos + 1
+      lRes = [None] * len(self.lRatioList)
+      for i in range(0, len(self.lRatioList)):
+         resTmp = dataSample.searchForward(iActionPos, self.lRatioList[i], iSearchPos)
+         if (resTmp != None):
+            [idx, tmpkey, iRes] = resTmp
+            lRes[i] = iRes
+            iSearchPos = idx
+         else:
+            break
+      if (lRes[0] != None):
+         sKey = dataSample.data[iActionPos][0]
+         self.resultMap[sKey] = lRes
 
    def simulate(self, dataSample):
       tic = time.time()
       xPerSecond = 100
       lastPos = 0
       dataNum = dataSample.len()
-      for iPos in range(1, dataNum):
+      for iPos in range(0, dataNum):
          stdout.write("\r[%2.1f%%] Simulating with action postion %d/%d (%d/s, %1.1f min remained)" % (iPos/float(dataNum)*100, iPos, dataNum, xPerSecond, (dataNum-iPos)/60.0/xPerSecond) )
          stdout.flush()
-         self.simulateOnce(dataSample, iPos)
+         self.simulateOnceForward(dataSample, iPos)
          if (time.time() - tic > 1):
             xPerSecond = iPos - lastPos
             lastPos = iPos
@@ -76,15 +94,15 @@ class Simulator:
    def getFrequencyFromNearestCounterPart(self, sortedList, currentPos, ratioIdx):
       maxnum = len(sortedList)
       currentTime = sortedList[currentPos][0]
-      currentVal = sortedList[currentPos][1][ratioIdx]   # currentVal == +1 or -1
+      currentVal = sortedList[currentPos][1][ratioIdx]   # currentVal can never be None or 0
 
       # Under the same ratio, find the distance between the first -1 on the left and current position (+1)
       i = 1
       dist_left = 0
       while (currentPos - i >= 0):
-         if ((sortedList[currentPos-i][1][ratioIdx] != None) and (sortedList[currentPos-i][1][ratioIdx] + currentVal == 0)):
+         if ((sortedList[currentPos-i][1][ratioIdx] != None) and (sortedList[currentPos-i][1][ratioIdx] * currentVal < 0) ):
             dist_left = datasample.getDiffInMinutes(sortedList[currentPos-i][0], currentTime)
-            #print('dist_left = ' + str(dist_left))
+            datasample.debugPrint('dist_left = ' + str(dist_left))
             break
          i = i + 1
 
@@ -92,9 +110,9 @@ class Simulator:
       j = 1
       dist_right = 0
       while (currentPos + j < maxnum):
-         if ((sortedList[currentPos+j][1][ratioIdx] != None) and (sortedList[currentPos+j][1][ratioIdx] + currentVal == 0)):
+         if ((sortedList[currentPos+j][1][ratioIdx] != None) and (sortedList[currentPos+j][1][ratioIdx] * currentVal < 0) ):
             dist_right = datasample.getDiffInMinutes(currentTime, sortedList[currentPos+j][0])
-            #print('dist_right = ' + str(dist_right))
+            datasample.debugPrint('dist_right = ' + str(dist_right))
             break
          j = j + 1
 
@@ -197,12 +215,13 @@ def test():
    listRatio = [0.05, 0.10, 0.15, 0.20]
    simu = Simulator(listRatio)
    simu.simulate(testData)
-   assert simu.resultMap['20180101 180900'] == [1, None, None, None]
-   assert simu.resultMap['20180101 180700'] == [-1, -1, None, None]
+   assert simu.resultMap['20180101 180100'] == [2, 3, 3, None]
+   assert simu.resultMap['20180101 180200'] == [2, 2, None, None]
    assert simu.resultMap['20180101 180300'] == [1, 1, None, None]
-   assert simu.resultMap['20180101 180800'] == [-1, -1, None, None]
-   assert simu.resultMap['20180101 180200'] == [1, 1, None, None]
-   assert simu.resultMap['20180101 180100'] == [1, 1, 1, None]
+   assert simu.resultMap['20180101 180700'] == [-2, -2, None, None]
+   assert simu.resultMap['20180101 180800'] == [-1, -2, None, None]
+   assert simu.resultMap['20180101 180900'] == [1, None, None, None]
+
    simu.saveToFile('resultmap.txt')
    simu2 = Simulator([])
    simu2.loadFromFile('resultmap.txt')

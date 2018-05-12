@@ -24,6 +24,7 @@ class Simulator:
    def simulateOnceBackward(self, dataSample, iActionPos):
       datasample.debugPrint("Start simulation with action postion = " + repr(iActionPos))
       iSearchPos = iActionPos - 1
+
       for i in range(0, len(self.lRatioList)):
          resTmp = dataSample.searchBack(iActionPos, self.lRatioList[i], iSearchPos)
          if (resTmp != None):
@@ -58,6 +59,20 @@ class Simulator:
             else:
                print('Error: forward and backward not compatible!')
 
+   # @basetime: the base time in string format
+   # @valList:  a list of integer representing minutes after basetime
+   def checkDuplication(self, basetime, valList):
+      keyForCheck = '';
+      for i in range(0, len(valList)):
+         if (valList[i] != None):
+            keyForCheck += (',' + datasample.addMinutes(basetime, abs(valList[i])) )
+         else:
+            keyForCheck += ',None'
+      if (keyForCheck in self.tmpMarkers):
+         return True
+      else:
+         self.tmpMarkers.add(keyForCheck)
+         return False
 
    def simulate(self, dataSample):
       tic = time.time()
@@ -65,6 +80,7 @@ class Simulator:
       lastPos = 0
       dataNum = dataSample.len()
 
+      self.tmpMarkers.clear()
       # Backward to find key positions
       for iPos in range(0, dataNum):
          stdout.write("\r[%2.1f%%] Simulating with action postion %d/%d (%d/s, %1.1f min remained)" % (iPos/float(dataNum)*100, iPos, dataNum, xPerSecond, (dataNum-iPos)/60.0/xPerSecond) )
@@ -76,17 +92,23 @@ class Simulator:
             tic = time.time()
       stdout.write("\n")
 
-      self.saveToFile('backwardres.txt')
       # Forward check
+      print('  Start forward check ...' )
       for iPos in self.tmpMarkers:
-         stdout.write("\r[%2.1f%%] Checking with action postion %d/%d (%d/s, %1.1f min remained)" % (iPos/float(dataNum)*100, iPos, dataNum, xPerSecond, (dataNum-iPos)/60.0/xPerSecond) )
-         stdout.flush()
          self.simulateOnceForward(dataSample, iPos)
          if (time.time() - tic > 1):
             xPerSecond = iPos - lastPos
             lastPos = iPos
             tic = time.time()
-      stdout.write("\n")
+
+      # Duplication check
+      print('  Start duplication check ...' )
+      self.tmpMarkers.clear()
+      sortedList = sorted(self.resultMap.items())  # return a list of tuple (key, val), sorted by key (date)
+      for pos in xrange(len(sortedList)-1, 0, -1):
+         if (self.checkDuplication(sortedList[pos][0], sortedList[pos][1])):
+            del self.resultMap[sortedList[pos][0]]
+
 
    # Save (sorted) result to file
    def saveToFile(self, filename):
@@ -172,7 +194,6 @@ class Simulator:
          else:
             break
 
-      #print(sortedList)
       return frequencies
 
    # Plot the statistic of resultMap per ratio:
@@ -181,12 +202,16 @@ class Simulator:
    # - The ratio of (+1/-1)/(total reply)
    def plotStat(self, outputbase):
       num = len(self.lRatioList)
-      histoPos = np.zeros(num)
-      histoNeg = np.zeros(num)
-      histoDlm = np.zeros(num)
+      histoPos  = np.zeros(num)
+      histoNeg  = np.zeros(num)
+      histoDlm  = np.zeros(num)
+      histoSumT = np.zeros(num)
+      histoNumT = np.zeros(num)
       for key, vList in self.resultMap.iteritems():
          for i in range(0, len(vList)):
             if (vList[i] != None):
+               histoNumT[i] += 1.0
+               histoSumT[i] += abs(vList[i])
                if (vList[i] > 0):
                   histoPos[i] += 1.0
                elif (vList[i] < 0):
@@ -198,15 +223,15 @@ class Simulator:
 
       # Plot the (actionable ticks)/(all ticks)
       effectiveRatio = np.divide(histoPos + histoNeg, histoPos + histoNeg + histoDlm)*100
+      averageWaitTime = np.divide(histoSumT, histoNumT)
 
       # Set attributes
       fig = plt.figure()
-      curveAx = fig.add_subplot(111)
+      curveAx = fig.add_subplot(211)
       barAx = curveAx.twinx()
 
       curveAx.set_ylabel('Effec. Ratio (%)')
       barAx.set_ylabel('Occurence')
-      barAx.set_xlabel('Ratio')
 
       # Plot
       curve, = curveAx.plot(idx, effectiveRatio, 'go-')
@@ -215,14 +240,20 @@ class Simulator:
       curveAx.legend([curve, positiveBar, negativeBar], ['Effec. Ratio', 'Positive', 'Negative'])
 
       curveAx.set_ylim([0, 102])
-
-      # Set x-axis ticks
       objects = tuple(self.lRatioList)
       plt.xticks(idx, objects)
 
-      plt.title('Statistics (source:' + outputbase + ')' )
-      
+      # Add figure for wait time
+      waitTimeAx = fig.add_subplot(212)
+      waitTimeBar = waitTimeAx.bar(idx, averageWaitTime/60, width = 0.3, color = 'b', align='center', alpha=0.5)
+      waitTimeAx.legend([waitTimeBar], ['Response Time (h)'], loc='upper left')
+      waitTimeAx.set_xlabel('Ratio')
 
+
+      # Set x-axis ticks
+      plt.xticks(idx, objects)
+
+      plt.title('Statistics (source:' + outputbase + ')' )
       plt.savefig(outputbase + '_stat.png')
       plt.close()
       #plt.show()
@@ -234,7 +265,6 @@ def test():
    simu = Simulator(listRatio)
    simu.simulate(testData)
    assert simu.resultMap['20180101 180100'] == [2, 3, 3, None]
-   assert simu.resultMap['20180101 180200'] == [2, 2, None, None]
    assert simu.resultMap['20180101 180300'] == [1, 1, None, None]
    assert simu.resultMap['20180101 180700'] == [-2, -2, None, None]
    assert simu.resultMap['20180101 180800'] == [-1, -2, None, None]

@@ -18,8 +18,8 @@ def debugPrint(outputString):
 # @sFormat:     string represent the format
 # @return:      a float represent the time
 #---------------------------------------------
-def timeConverter(sTimeString, sFormat):
-   datetime_temp = datetime.datetime.strptime(sTimeString, sFormat = TIME_FORMAT)
+def timeConverter(sTimeString, sFormat = TIME_FORMAT):
+   datetime_temp = datetime.datetime.strptime(sTimeString, sFormat)
    return dt.date2num(datetime_temp)
 
 def getDiffInMinutes(timeString1, timeString2, sFormat = TIME_FORMAT):
@@ -27,6 +27,11 @@ def getDiffInMinutes(timeString1, timeString2, sFormat = TIME_FORMAT):
    datetime2 = datetime.datetime.strptime(timeString2, sFormat)
    deltaTime = datetime2 - datetime1
    return int(deltaTime.total_seconds() / 60)
+
+def addMinutes(timeString, minutes, sFormat = TIME_FORMAT):
+   dt = datetime.datetime.strptime(timeString, sFormat)
+   dt = dt + datetime.timedelta(seconds=minutes*60)
+   return dt.strftime(sFormat)
 
 class DataSample:
    def __init__(self, other = None, iStartPos = 0, iEndPos = -1):
@@ -227,6 +232,11 @@ class DataSample:
       return None   # None represents not found
 
 def test():
+
+   assert getDiffInMinutes('20180101 180300', '20180101 190400') == 61
+   print(addMinutes('20180101 180300', 195))
+   assert addMinutes('20180101 180300', 195) == '20180101 211800'
+
    testData = DataSample()
    testData.readFromFile('testcase.csv')
    assert testData.len() == 10
